@@ -417,6 +417,29 @@ if page == "👤 Therapist Chat":
 
     user_text = st.text_input("Share what’s on your mind…", key="chat_input")
     col1, col2, col3 = st.columns([0.4, 0.3, 0.3])
+    # -----------------------------
+# Page: Therapist Chat
+# -----------------------------
+if page == "👤 Therapist Chat":
+    st.subheader("AI Therapist (Text · Optional Voice)")
+    st.write("HOME listens, learns, and supports. Conversations are stored locally in this demo to show memory.")
+
+    # Voice toggle — define ON THIS PAGE ONLY to avoid duplicate element IDs
+    st.session_state.voice_enabled = st.checkbox(
+        "🔊 Enable Voice Replies",
+        value=st.session_state.voice_enabled,
+        key="voice_checkbox_chat",
+    )
+
+    # Conversation history
+    for role, text in st.session_state.chat_history[-12:]:
+        if role == "user":
+            st.markdown(f"**You:** {text}")
+        else:
+            st.markdown(f"**HOME:** {text}")
+
+    user_text = st.text_input("Share what’s on your mind…", key="chat_input")
+    col1, col2, col3 = st.columns([0.4, 0.3, 0.3])
     with col1:
         if st.button("Send", use_container_width=True, key="chat_send"):
             if user_text.strip():
@@ -428,7 +451,22 @@ if page == "👤 Therapist Chat":
                     audio_file = speak_text(reply)
                     if audio_file:
                         st.audio(audio_file, format="audio/mp3")
-                st.experimental_rerun()
+            # Rerun safely after updating chat
+            st.experimental_rerun()
+    with col2:
+        if st.button("Quick Calm (4‑7‑8)", key="quick_calm"):
+            st.session_state.chat_history.append(("assistant", CBT_SUGGESTIONS[0]))
+            st.experimental_rerun()
+    with col3:
+        if st.button("Add Next Task from Chat", key="add_task_from_chat"):
+            st.session_state.tasks.append({
+                "title": f"Tiny next step from chat @ {datetime.now().strftime('%H:%M')}",
+                "deadline": (datetime.now() + timedelta(days=2)).isoformat(),
+                "est_min": 25,
+                "importance": 3,
+                "done": False,
+            })
+            st.success("Added a tiny next step to Tasks")
     with col2:
         if st.button("Quick Calm (4‑7‑8)", key="quick_calm"):
             st.session_state.chat_history.append(("assistant", CBT_SUGGESTIONS[0]))
@@ -558,14 +596,50 @@ elif page == "✅ Tasks & Pomodoro":
             st.session_state.pomodoro.update({"status":"idle", "end_time":None, "cycle":0})
             st.experimental_rerun()
 
+    # -----------------------------
+# Page: Tasks & Pomodoro
+# -----------------------------
+elif page == "✅ Tasks & Pomodoro":
+    st.subheader("Task Prioritization & Pomodoro")
+    max_work = st.number_input("Max working time for next session (minutes)", min_value=10, max_value=180, value=50, key="max_work")
+
+    # Add Task section here (same as your code)...
+
+    # Pomodoro controls
+    st.write("---")
+    st.write("### Pomodoro Timer")
+    pcfg = st.session_state.pomodoro
+    colp1, colp2, colp3, _ = st.columns(4)
+    with colp1:
+        pcfg["focus_min"] = st.number_input("Focus (min)", 10, 60, pcfg["focus_min"], key="focus_min")
+    with colp2:
+        pcfg["short_break_min"] = st.number_input("Short Break (min)", 3, 20, pcfg["short_break_min"], key="short_break_min")
+    with colp3:
+        pcfg["long_break_min"] = st.number_input("Long Break (min)", 10, 45, pcfg["long_break_min"], key="long_break_min")
+
+    colpb1, colpb2, colpb3 = st.columns(3)
+    with colpb1:
+        if st.button("Start Focus", key="start_focus"):
+            start_timer("focus")
+    with colpb2:
+        if st.button("Start Break", key="start_break"):
+            start_timer("break")
+    with colpb3:
+        if st.button("Reset", key="pomodoro_reset"):
+            st.session_state.pomodoro.update({"status":"idle", "end_time":None, "cycle":0})
+
+    # -----------------------------
+    # Pomodoro Timer Auto-Refresh
+    # -----------------------------
+    from streamlit_autorefresh import st_autorefresh
+    st_autorefresh(interval=1000, key="pomodoro_timer_autorefresh")
+
     rem = timer_remaining()
     if pcfg["status"] != "idle" and rem > 0:
         st.metric(f"{pcfg['status'].capitalize()} ends in", f"{rem//60:02d}:{rem%60:02d}")
         total_secs = pcfg['focus_min']*60 if pcfg['status']=='focus' else ((pcfg['long_break_min']*60) if (pcfg['cycle']+1)%4==0 else pcfg['short_break_min']*60)
         st.progress(min(max(1 - rem / total_secs, 0.0), 1.0))
-        st.caption("Keep this tab open; timer updates each run.")
-        time.sleep(1)
-        st.experimental_rerun()
+        st.caption("Keep this tab open; timer updates automatically.")
     elif pcfg["status"] != "idle" and rem == 0:
         if pcfg["status"] == "focus":
             pcfg["cycle"] += 1
@@ -575,7 +649,7 @@ elif page == "✅ Tasks & Pomodoro":
         else:
             start_timer("focus")
             st.info("Break complete. Back to focus.")
-        st.experimental_rerun()
+
 
 # -----------------------------
 # Page: Wallet & Investing
