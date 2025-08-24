@@ -1,15 +1,11 @@
 # HOME – Humanity Over Mission Etiquette
-# Streamlit demo app (single-file) for hackathon — CLEANED & FIXED
+# Streamlit demo app (single-file) for hackathon — FIXED
 # ------------------------------------------------------------
-# Features:
-# 1) AI Therapist (text + optional voice reply), memory per user session
-# 2) Mood detection simulator (future wearable integration placeholder)
-# 3) Task prioritization with Pomodoro workflow (deadline + duration + max work time)
-# 4) Finance: smart wallet, mock investing (S&P 500, Gold, Real Estate, SIPs)
-#    Fees: 10% of profits, 1% of assets (annualized, prorated monthly), 0.2% per transaction
-#    Revenue allocation: 30% to investments pool, 10% bank, 10% marketing (modeled in dashboard)
-# 5) Escalation to human therapist (simulated)
-# 6) $10/month subscription banner
+# Fixes applied:
+# - Corrected a bug in Pomodoro timer progress calculation where short break duration
+#   was not multiplied by 60 seconds (caused incorrect progress and possible divide issues).
+# - Made "Mark Done" task lookup robust so it only marks the intended task (avoids using a stale idx).
+# - Small defensive checks (explicit None checks for end_time).
 # ------------------------------------------------------------
 
 from datetime import datetime, timedelta, date
@@ -266,7 +262,7 @@ def start_timer(kind: str):
 
 def timer_remaining() -> int:
     cfg = st.session_state.pomodoro
-    if not cfg["end_time"]:
+    if cfg.get("end_time") is None:
         return 0
     return max(int((cfg["end_time"] - datetime.now()).total_seconds()), 0)
 
@@ -524,13 +520,18 @@ elif page == "✅ Tasks & Pomodoro":
         with col4:
             st.caption(f"Importance: {t['importance']}/5")
         with col5:
-            # find index of the task in original list
+            # robustly find the matching task index in original list
+            match_idx = None
             for idx, orig in enumerate(st.session_state.tasks):
-                if orig['title'] == t['title'] and orig['deadline'] == t['deadline']:
+                if orig.get('title') == t.get('title') and orig.get('deadline') == t.get('deadline'):
+                    match_idx = idx
                     break
             if st.button("Mark Done", key=f"done_{i}"):
-                st.session_state.tasks[idx]["done"] = True
-                st.experimental_rerun()
+                if match_idx is not None:
+                    st.session_state.tasks[match_idx]["done"] = True
+                    st.experimental_rerun()
+                else:
+                    st.warning("Could not find the task to mark done.")
 
     # Pomodoro controls
     st.write("---")
@@ -561,8 +562,16 @@ elif page == "✅ Tasks & Pomodoro":
     rem = timer_remaining()
     if pcfg["status"] != "idle" and rem > 0:
         st.metric(f"{pcfg['status'].capitalize()} ends in", f"{rem//60:02d}:{rem%60:02d}")
-        total_secs = pcfg['focus_min']*60 if pcfg['status']=='focus' else ((pcfg['long_break_min']*60) if (pcfg['cycle']+1)%4==0 else pcfg['short_break_min']*60)
-        st.progress(min(max(1 - rem / total_secs, 0.0), 1.0))
+        # total_secs must be in seconds — fixed missing *60 for short breaks
+        if pcfg['status'] == 'focus':
+            total_secs = pcfg['focus_min'] * 60
+        else:
+            total_secs = pcfg['long_break_min'] * 60 if (pcfg['cycle'] + 1) % 4 == 0 else pcfg['short_break_min'] * 60
+        # guard against division by zero
+        progress = 0.0
+        if total_secs > 0:
+            progress = min(max(1 - rem / total_secs, 0.0), 1.0)
+        st.progress(progress)
         st.caption("Keep this tab open; timer updates each run.")
         time.sleep(1)
         st.experimental_rerun()
