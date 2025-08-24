@@ -158,9 +158,20 @@ st.set_page_config(page_title="HOME - Humanity Over Mission Etiquette", layout="
 
 st.title("🏠 HOME: Humanity Over Mission Etiquette")
 st.write("Your AI companion for **mental health**, **task management**, and **financial wellness**.")
+# -----------------------------
+# VOICE ENABLE TOGGLE
+# -----------------------------
+# Always store this in session_state
+if "voice_enabled" not in st.session_state:
+    st.session_state.voice_enabled = True
 
-# Voice toggle
-voice_enabled = st.checkbox("🔊 Enable Voice Replies", value=True)
+# Sidebar toggle (with unique key)
+st.sidebar.header("⚙️ Settings")
+st.session_state.voice_enabled = st.sidebar.checkbox(
+    "🔊 Enable Voice Replies",
+    value=st.session_state.voice_enabled,
+    key="voice_checkbox_unique"
+)
 
 # User input form
 with st.form("user_form"):
@@ -836,4 +847,5 @@ else:
         """
     )
 
-    st.write("\n\nBuilt with ❤️ using Streamlit.")
+    st.write("\n\nBuilt with ❤️ using Streamlit.")
+
