@@ -1,5 +1,5 @@
 # HOME – Humanity Over Mission Etiquette
-# Streamlit demo app (single-file) for hackathon
+# Streamlit demo app (single-file) for hackathon — CLEANED & FIXED
 # ------------------------------------------------------------
 # Features:
 # 1) AI Therapist (text + optional voice reply), memory per user session
@@ -10,195 +10,32 @@
 #    Revenue allocation: 30% to investments pool, 10% bank, 10% marketing (modeled in dashboard)
 # 5) Escalation to human therapist (simulated)
 # 6) $10/month subscription banner
-#
-# How to run locally:
-#   pip install streamlit pydantic python-dateutil numpy pandas
-#   streamlit run HOME_app_streamlit.py
-# Optional (for TTS voice replies):
-#   pip install gTTS
 # ------------------------------------------------------------
 
-import time
 from datetime import datetime, timedelta, date
-from dateutil.relativedelta import relativedelta
-import random
-import json
 from typing import List, Dict, Any
+import time
+import random
 
 import numpy as np
 import pandas as pd
 import streamlit as st
-import streamlit as st
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 from pydantic import BaseModel
-from gtts import gTTS
-import os
-# -------------------------------
-# Voice Function
-# -------------------------------
-def speak_text(text, filename="response.mp3"):
-    """Convert text to speech and save as mp3"""
-    tts = gTTS(text=text, lang="en")
-    tts.save(filename)
-    return filename
 
-# -------------------------------
-# User Profile (Pydantic)
-# -------------------------------
-class UserProfile(BaseModel):
-    name: str
-    mood: str
-    savings: float
-    tasks: list
+# Optional TTS (guarded, so app won't crash if gTTS unavailable on cloud)
+try:
+    from gtts import gTTS
+    GTTS_AVAILABLE = True
+except Exception:
+    GTTS_AVAILABLE = False
 
-# -------------------------------
-# Mock AI Core Logic
-# -------------------------------
-def ai_response(user: UserProfile, user_message: str):
-    if "money" in user_message.lower():
-        reply = f"Hey {user.name}, remember you’ve saved ${user.savings:.2f}. Let’s put a part of it into a safe SIP investment."
-    elif "task" in user_message.lower():
-        reply = f"{user.name}, let’s break your tasks into smaller chunks using the Pomodoro technique. Which one feels urgent today?"
-    elif "hello" in user_message.lower():
-        reply = f"Hello {user.name}! How are you feeling right now?"
-    else:
-        reply = f"I hear you, {user.name}. You’re not alone. Let’s work through this together."
-    return reply
-
-# -------------------------------
-# Streamlit UI
-# -------------------------------
-st.set_page_config(page_title="HOME - Humanity Over Mission Etiquette", layout="centered")
-
-st.title("🏠 HOME: Humanity Over Mission Etiquette")
-st.write("Your AI companion for **mental health**, **task management**, and **financial wellness**.")
-
-# Voice toggle
-voice_enabled = st.checkbox("🔊 Enable Voice Replies", value=True)
-
-# User input form
-with st.form("user_form"):
-    name = st.text_input("What’s your name?", "Bob")
-    mood = st.selectbox("How are you feeling?", ["😊 Happy", "😟 Anxious", "😔 Depressed", "😐 Neutral"])
-    savings = st.number_input("Your current savings ($)", min_value=0.0, value=100.0, step=10.0)
-    tasks = st.text_area("List your tasks (comma separated)", "Pay bills, Finish report, Buy groceries")
-    submitted = st.form_submit_button("Start HOME")
-
-# Session state to remember conversation history
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
-if submitted:
-    user = UserProfile(name=name, mood=mood, savings=savings, tasks=tasks.split(","))
-    st.success(f"Welcome {user.name}! HOME is here for you. 💙")
-
-    # Chat section
-    user_message = st.text_input("💬 Talk to HOME:", "Hello")
-    if st.button("Send"):
-        # Add user message to history
-        st.session_state.chat_history.append(("You", user_message))
-
-        # Get AI reply
-        reply = ai_response(user, user_message)
-        st.session_state.chat_history.append(("HOME", reply))
-
-        # Play voice if enabled
-        if voice_enabled:
-            audio_file = speak_text(reply)
-            st.audio(audio_file, format="audio/mp3")
-
-# Display chat history like WhatsApp
-if st.session_state.chat_history:
-    st.subheader("💭 Conversation")
-    for sender, message in st.session_state.chat_history:
-        if sender == "You":
-            st.markdown(f"<div style='text-align:right; color:white; background:#25D366; padding:8px; border-radius:12px; margin:5px 0; display:inline-block;'>👤 {message}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div style='text-align:left; color:white; background:#075E54; padding:8px; border-radius:12px; margin:5px 0; display:inline-block;'>🤖 {message}</div>", unsafe_allow_html=True)
-
-# -------------------------------
-# Voice Function
-# -------------------------------
-def speak_text(text, filename="response.mp3"):
-    """Convert text to speech and save as mp3"""
-    tts = gTTS(text=text, lang="en")
-    tts.save(filename)
-    return filename
-
-# -------------------------------
-# User Profile (Pydantic)
-# -------------------------------
-class UserProfile(BaseModel):
-    name: str
-    mood: str
-    savings: float
-    tasks: list
-
-# -------------------------------
-# Mock AI Core Logic
-# -------------------------------
-def ai_response(user: UserProfile, user_message: str):
-    if "money" in user_message.lower():
-        reply = f"Hey {user.name}, remember you’ve saved ${user.savings:.2f}. Let’s put a part of it into a safe SIP investment."
-    elif "task" in user_message.lower():
-        reply = f"{user.name}, let’s break your tasks into smaller chunks using the Pomodoro technique. Which one feels urgent today?"
-    elif "hello" in user_message.lower():
-        reply = f"Hello {user.name}! How are you feeling right now?"
-    else:
-        reply = f"I hear you, {user.name}. You’re not alone. Let’s work through this together."
-    return reply
-
-# -------------------------------
-# Streamlit UI
-# -------------------------------
-st.set_page_config(page_title="HOME - Humanity Over Mission Etiquette", layout="centered")
-
-st.title("🏠 HOME: Humanity Over Mission Etiquette")
-st.write("Your AI companion for **mental health**, **task management**, and **financial wellness**.")
 # -----------------------------
-# VOICE ENABLE TOGGLE
+# App-wide config — MUST be called exactly once
 # -----------------------------
-# Always store this in session_state
-if "voice_enabled" not in st.session_state:
-    st.session_state.voice_enabled = True
+st.set_page_config(page_title="HOME – Humanity Over Mission Etiquette", page_icon="🏠", layout="wide")
 
-# Sidebar toggle (with unique key)
-st.sidebar.header("⚙️ Settings")
-st.session_state.voice_enabled = st.sidebar.checkbox(
-    "🔊 Enable Voice Replies",
-    value=st.session_state.voice_enabled,
-    key="voice_checkbox_unique"
-)
-
-# User input form
-with st.form("user_form"):
-    name = st.text_input("What’s your name?", "Bob")
-    mood = st.selectbox("How are you feeling?", ["😊 Happy", "😟 Anxious", "😔 Depressed", "😐 Neutral"])
-    savings = st.number_input("Your current savings ($)", min_value=0.0, value=100.0, step=10.0)
-    tasks = st.text_area("List your tasks (comma separated)", "Pay bills, Finish report, Buy groceries")
-    submitted = st.form_submit_button("Start HOME")
-
-if submitted:
-    user = UserProfile(name=name, mood=mood, savings=savings, tasks=tasks.split(","))
-    st.success(f"Welcome {user.name}! HOME is here for you. 💙")
-
-    # Chat section
-    user_message = st.text_input("💬 Talk to HOME:", "Hello")
-    if st.button("Send"):
-        reply = ai_response(user, user_message)
-
-        # Show text reply
-        st.markdown(f"**HOME:** {reply}")
-
-        # Optional voice reply
-        if voice_enabled:
-            audio_file = speak_text(reply)
-            st.audio(audio_file, format="audio/mp3")
 # -----------------------------
-# Utilities & Session Storage
+# Constants
 # -----------------------------
 APP_NAME = "HOME – Humanity Over Mission Etiquette"
 
@@ -219,7 +56,7 @@ FEE_TXN = 0.002           # 0.2% per transaction
 
 SUBSCRIPTION_USD = 10
 
-# Revenue allocation from $1 subscription
+# Revenue allocation from $1 subscription (for dashboard)
 REV_INVEST_POOL = 0.30
 REV_BANK = 0.10
 REV_MARKETING = 0.10
@@ -228,10 +65,15 @@ REV_EQUITY_SHARES = 0.05  # from NET (for creating 1M shares)
 REV_INVESTOR_PAYOUT = 0.10  # from NET
 REV_RETAINED = 1.0 - (REV_EQUITY_SHARES + REV_INVESTOR_PAYOUT)  # remaining from NET
 
+# -----------------------------
+# Utilities & Session Storage
+# -----------------------------
 
 def init_state():
     if "user_name" not in st.session_state:
         st.session_state.user_name = "Bob"  # demo persona by default
+    if "voice_enabled" not in st.session_state:
+        st.session_state.voice_enabled = True
     if "mood_log" not in st.session_state:
         st.session_state.mood_log = []  # list of dicts {ts, hrv, hr, gsr, mood}
     if "chat_history" not in st.session_state:
@@ -270,9 +112,48 @@ def init_state():
 def fmt_money(x: float) -> str:
     return f"${x:,.2f}"
 
+# -----------------------------
+# Voice Function (safe)
+# -----------------------------
+
+def speak_text(text: str, filename: str = "response.mp3"):
+    """Convert text to speech and save as mp3 (no-op if gTTS missing)."""
+    if not GTTS_AVAILABLE:
+        return None
+    try:
+        tts = gTTS(text=text, lang="en")
+        tts.save(filename)
+        return filename
+    except Exception:
+        return None
 
 # -----------------------------
-# AI Therapist (rule-based demo)
+# User Profile (Pydantic)
+# -----------------------------
+
+class UserProfile(BaseModel):
+    name: str
+    mood: str
+    savings: float
+    tasks: list
+
+# -----------------------------
+# Mock AI Core Logic (legacy-style for Finance page demo)
+# -----------------------------
+
+def ai_response(user: UserProfile, user_message: str):
+    if "money" in user_message.lower():
+        reply = f"Hey {user.name}, remember you’ve saved ${user.savings:.2f}. Let’s put a part of it into a safe SIP investment."
+    elif "task" in user_message.lower():
+        reply = f"{user.name}, let’s break your tasks into smaller chunks using the Pomodoro technique. Which one feels urgent today?"
+    elif "hello" in user_message.lower():
+        reply = f"Hello {user.name}! How are you feeling right now?"
+    else:
+        reply = f"I hear you, {user.name}. You’re not alone. Let’s work through this together."
+    return reply
+
+# -----------------------------
+# Therapist reply (rule-based demo)
 # -----------------------------
 CBT_SUGGESTIONS = [
     "Let’s try a 4-7-8 breath: inhale 4, hold 7, exhale 8. Repeat 4 times.",
@@ -313,8 +194,7 @@ def ai_reply(user_text: str) -> str:
         reply_blocks.append("Tell me more. What feels heaviest right now?")
 
     reply_blocks.append(random.choice(POSITIVE_REINFORCERS))
-    return " " .join(reply_blocks)
-
+    return " ".join(reply_blocks)
 
 # -----------------------------
 # Mood Detection (simulator for wearable)
@@ -335,7 +215,6 @@ def detect_mood(hrv_ms: int, hr_bpm: int, gsr_kohm: float) -> str:
     if score >= 2:
         return "Elevated"
     return "Calm"
-
 
 # -----------------------------
 # Task Prioritization & Pomodoro
@@ -391,7 +270,6 @@ def timer_remaining() -> int:
         return 0
     return max(int((cfg["end_time"] - datetime.now()).total_seconds()), 0)
 
-
 # -----------------------------
 # Finance Engine (mock)
 # -----------------------------
@@ -417,16 +295,16 @@ def apply_monthly_growth():
 
     # Fees
     aum = sum(new_investments.values())
-    fee_aum_month = aum * ( (1 + FEE_AUM_ANNUAL) ** (1/12) - 1 )  # roughly 1% annual prorated
+    fee_aum_month = aum * ((1 + FEE_AUM_ANNUAL) ** (1/12) - 1)  # ~1% annual prorated
     fee_profit_share = profit * FEE_PROFIT_SHARE
     total_fees = fee_aum_month + fee_profit_share
+
     # Deduct fees from cash if possible, else proportionally from investments
     if w["cash"] >= total_fees:
         w["cash"] -= total_fees
     else:
         shortfall = total_fees - w["cash"]
         w["cash"] = 0.0
-        # take from investments proportionally
         pv = sum(new_investments.values())
         if pv > 0:
             for asset in new_investments.keys():
@@ -441,7 +319,7 @@ def apply_monthly_growth():
         "ts": datetime.now().isoformat(timespec="seconds"),
         "cash": w["cash"],
         "total": total,
-        "allocations": dict(w["investments"]) ,
+        "allocations": dict(w["investments"]),
     }
     w["history"].append(snapshot)
 
@@ -486,15 +364,12 @@ def rebalance(weights: Dict[str, float]):
     invest_from_cash(w["cash"])  # invest all aligned to new weights
     w["weights"] = weights
 
-
 # -----------------------------
-# Streamlit UI
+# UI — Header & Sidebar
 # -----------------------------
 
-st.set_page_config(page_title=APP_NAME, page_icon="🏠", layout="wide")
 init_state()
 
-# Header / Subscription banner
 colA, colB = st.columns([0.75, 0.25])
 with colA:
     st.title(APP_NAME)
@@ -505,16 +380,19 @@ with colB:
     else:
         st.warning("Free trial (7 days)")
 
-# Sidebar Navigation
-page = st.sidebar.radio("Navigate", [
-    "👤 Therapist Chat",
-    "📈 Mood Detection",
-    "✅ Tasks & Pomodoro",
-    "💰 Wallet & Investing",
-    "📊 Business Dashboard",
-    "🧑‍⚕️ Human Therapist",
-    "ℹ️ About & Safety"
-])
+page = st.sidebar.radio(
+    "Navigate",
+    [
+        "👤 Therapist Chat",
+        "📈 Mood Detection",
+        "✅ Tasks & Pomodoro",
+        "💰 Wallet & Investing",
+        "📊 Business Dashboard",
+        "🧑‍⚕️ Human Therapist",
+        "ℹ️ About & Safety",
+    ],
+    key="nav_radio",
+)
 
 # -----------------------------
 # Page: Therapist Chat
@@ -522,6 +400,13 @@ page = st.sidebar.radio("Navigate", [
 if page == "👤 Therapist Chat":
     st.subheader("AI Therapist (Text · Optional Voice)")
     st.write("HOME listens, learns, and supports. Conversations are stored locally in this demo to show memory.")
+
+    # Voice toggle — define ON THIS PAGE ONLY to avoid duplicate element IDs
+    st.session_state.voice_enabled = st.checkbox(
+        "🔊 Enable Voice Replies",
+        value=st.session_state.voice_enabled,
+        key="voice_checkbox_chat",
+    )
 
     # Conversation history
     for role, text in st.session_state.chat_history[-12:]:
@@ -533,19 +418,23 @@ if page == "👤 Therapist Chat":
     user_text = st.text_input("Share what’s on your mind…", key="chat_input")
     col1, col2, col3 = st.columns([0.4, 0.3, 0.3])
     with col1:
-        if st.button("Send", use_container_width=True):
+        if st.button("Send", use_container_width=True, key="chat_send"):
             if user_text.strip():
                 st.session_state.chat_history.append(("user", user_text))
                 reply = ai_reply(user_text)
                 st.session_state.chat_history.append(("assistant", reply))
+                # Optional voice reply
+                if st.session_state.voice_enabled:
+                    audio_file = speak_text(reply)
+                    if audio_file:
+                        st.audio(audio_file, format="audio/mp3")
                 st.experimental_rerun()
     with col2:
-        if st.button("Quick Calm (4‑7‑8)"):
+        if st.button("Quick Calm (4‑7‑8)", key="quick_calm"):
             st.session_state.chat_history.append(("assistant", CBT_SUGGESTIONS[0]))
             st.experimental_rerun()
     with col3:
-        if st.button("Add Next Task from Chat"):
-            # Auto-extract a tiny next action suggestion
+        if st.button("Add Next Task from Chat", key="add_task_from_chat"):
             st.session_state.tasks.append({
                 "title": f"Tiny next step from chat @ {datetime.now().strftime('%H:%M')}",
                 "deadline": (datetime.now() + timedelta(days=2)).isoformat(),
@@ -564,16 +453,16 @@ elif page == "📈 Mood Detection":
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        hrv = st.slider("HRV (ms)", min_value=20, max_value=120, value=55)
+        hrv = st.slider("HRV (ms)", min_value=20, max_value=120, value=55, key="hrv")
     with c2:
-        hr = st.slider("Heart Rate (bpm)", min_value=50, max_value=140, value=85)
+        hr = st.slider("Heart Rate (bpm)", min_value=50, max_value=140, value=85, key="hr")
     with c3:
-        gsr = st.slider("Skin Resistance (kΩ)", min_value=50, max_value=500, value=260)
+        gsr = st.slider("Skin Resistance (kΩ)", min_value=50, max_value=500, value=260, key="gsr")
 
     mood = detect_mood(hrv, hr, gsr)
     st.metric("Detected Mood", mood)
 
-    if st.button("Save Reading"):
+    if st.button("Save Reading", key="save_reading"):
         st.session_state.mood_log.append({
             "ts": datetime.now().isoformat(timespec="seconds"),
             "hrv": hrv, "hr": hr, "gsr": gsr, "mood": mood
@@ -584,11 +473,11 @@ elif page == "📈 Mood Detection":
         st.info("HOME: I noticed signs of stress. Want to talk or start a 4‑7‑8 breath?")
         colx, coly = st.columns(2)
         with colx:
-            if st.button("Open Chat"):
+            if st.button("Open Chat", key="open_chat_from_mood"):
                 st.session_state.chat_history.append(("assistant", "I noticed your stress markers rising. I’m here with you. What’s happening?"))
                 st.experimental_rerun()
         with coly:
-            if st.button("Start 4‑7‑8 Now"):
+            if st.button("Start 4‑7‑8 Now", key="start_breath_now"):
                 st.session_state.chat_history.append(("assistant", CBT_SUGGESTIONS[0]))
                 st.experimental_rerun()
 
@@ -602,14 +491,14 @@ elif page == "📈 Mood Detection":
 # -----------------------------
 elif page == "✅ Tasks & Pomodoro":
     st.subheader("Task Prioritization & Pomodoro")
-    max_work = st.number_input("Max working time for next session (minutes)", min_value=10, max_value=180, value=50)
+    max_work = st.number_input("Max working time for next session (minutes)", min_value=10, max_value=180, value=50, key="max_work")
 
     with st.expander("Add Task"):
-        t_title = st.text_input("Title")
-        t_deadline = st.date_input("Deadline", value=date.today() + timedelta(days=3))
-        t_est = st.number_input("Estimated minutes", 5, 600, 30)
-        t_imp = st.slider("Importance", 1, 5, 3)
-        if st.button("Add") and t_title:
+        t_title = st.text_input("Title", key="task_title")
+        t_deadline = st.date_input("Deadline", value=date.today() + timedelta(days=3), key="task_deadline")
+        t_est = st.number_input("Estimated minutes", 5, 600, 30, key="task_est")
+        t_imp = st.slider("Importance", 1, 5, 3, key="task_imp")
+        if st.button("Add", key="task_add") and t_title:
             st.session_state.tasks.append({
                 "title": t_title,
                 "deadline": datetime.combine(t_deadline, datetime.min.time()).isoformat(),
@@ -635,7 +524,10 @@ elif page == "✅ Tasks & Pomodoro":
         with col4:
             st.caption(f"Importance: {t['importance']}/5")
         with col5:
-            idx = st.session_state.tasks.index(next(x for x in st.session_state.tasks if x['title']==t['title'] and x['deadline']==t['deadline']))
+            # find index of the task in original list
+            for idx, orig in enumerate(st.session_state.tasks):
+                if orig['title'] == t['title'] and orig['deadline'] == t['deadline']:
+                    break
             if st.button("Mark Done", key=f"done_{i}"):
                 st.session_state.tasks[idx]["done"] = True
                 st.experimental_rerun()
@@ -644,34 +536,33 @@ elif page == "✅ Tasks & Pomodoro":
     st.write("---")
     st.write("### Pomodoro Timer")
     pcfg = st.session_state.pomodoro
-    colp1, colp2, colp3, colp4 = st.columns(4)
+    colp1, colp2, colp3, _ = st.columns(4)
     with colp1:
-        pcfg["focus_min"] = st.number_input("Focus (min)", 10, 60, pcfg["focus_min"])
+        pcfg["focus_min"] = st.number_input("Focus (min)", 10, 60, pcfg["focus_min"], key="focus_min")
     with colp2:
-        pcfg["short_break_min"] = st.number_input("Short Break (min)", 3, 20, pcfg["short_break_min"])
+        pcfg["short_break_min"] = st.number_input("Short Break (min)", 3, 20, pcfg["short_break_min"], key="short_break_min")
     with colp3:
-        pcfg["long_break_min"] = st.number_input("Long Break (min)", 10, 45, pcfg["long_break_min"])
-    with colp4:
-        pass
+        pcfg["long_break_min"] = st.number_input("Long Break (min)", 10, 45, pcfg["long_break_min"], key="long_break_min")
 
     colpb1, colpb2, colpb3 = st.columns(3)
     with colpb1:
-        if st.button("Start Focus"):
+        if st.button("Start Focus", key="start_focus"):
             start_timer("focus")
             st.experimental_rerun()
     with colpb2:
-        if st.button("Start Break"):
+        if st.button("Start Break", key="start_break"):
             start_timer("break")
             st.experimental_rerun()
     with colpb3:
-        if st.button("Reset"):
+        if st.button("Reset", key="pomodoro_reset"):
             st.session_state.pomodoro.update({"status":"idle", "end_time":None, "cycle":0})
             st.experimental_rerun()
 
     rem = timer_remaining()
     if pcfg["status"] != "idle" and rem > 0:
         st.metric(f"{pcfg['status'].capitalize()} ends in", f"{rem//60:02d}:{rem%60:02d}")
-        st.progress(1 - rem / (pcfg['focus_min']*60 if pcfg['status']=='focus' else (pcfg['long_break_min']*60 if (pcfg['cycle']+1)%4==0 else pcfg['short_break_min']*60)))
+        total_secs = pcfg['focus_min']*60 if pcfg['status']=='focus' else ((pcfg['long_break_min']*60) if (pcfg['cycle']+1)%4==0 else pcfg['short_break_min']*60)
+        st.progress(min(max(1 - rem / total_secs, 0.0), 1.0))
         st.caption("Keep this tab open; timer updates each run.")
         time.sleep(1)
         st.experimental_rerun()
@@ -701,18 +592,18 @@ elif page == "💰 Wallet & Investing":
     c1.metric("Cash", fmt_money(cash))
     c2.metric("Invested", fmt_money(invested))
     c3.metric("Total", fmt_money(total))
-    c4.metric("Transactions", w["txn_count"])
+    c4.metric("Transactions", w["txn_count"]) 
 
     st.write("#### Deposit & Invest")
-    dep = st.number_input("Deposit amount ($)", min_value=0.0, value=100.0, step=10.0)
+    dep = st.number_input("Deposit amount ($)", min_value=0.0, value=100.0, step=10.0, key="dep_amt")
     colw1, colw2 = st.columns(2)
     with colw1:
-        if st.button("Deposit to Wallet"):
+        if st.button("Deposit to Wallet", key="deposit_btn"):
             deposit_cash(dep)
             st.success(f"Deposited {fmt_money(dep)}")
             st.experimental_rerun()
     with colw2:
-        if st.button("Invest from Cash"):
+        if st.button("Invest from Cash", key="invest_btn"):
             invest_from_cash(min(dep, st.session_state.wallet["cash"]))
             st.success("Invested from available cash (after 0.2% txn fee)")
             st.experimental_rerun()
@@ -723,20 +614,20 @@ elif page == "💰 Wallet & Investing":
     assets = list(FAKE_MARKET_RETURNS_ANNUAL.keys())
     for i, asset in enumerate(assets):
         with cols[i]:
-            new_w[asset] = st.number_input(f"{asset} %", 0, 100, int(w["weights"].get(asset, 0)*100))
+            new_w[asset] = st.number_input(f"{asset} %", 0, 100, int(w["weights"].get(asset, 0)*100), key=f"alloc_{asset}")
     total_pct = sum(new_w.values())
     if total_pct == 0:
         st.warning("Set at least one allocation > 0%.")
     else:
         new_w = {k: v/100 for k, v in new_w.items()}
-        if st.button("Rebalance"):
+        if st.button("Rebalance", key="rebalance_btn"):
             rebalance(new_w)
             st.success("Rebalanced (fees applied)")
             st.experimental_rerun()
 
     st.write("#### Simulate Monthly Growth")
-    months = st.slider("Months to simulate", 1, 24, 1)
-    if st.button("Apply Growth"):
+    months = st.slider("Months to simulate", 1, 24, 1, key="months_sim")
+    if st.button("Apply Growth", key="apply_growth"):
         for _ in range(months):
             apply_monthly_growth()
         st.success(f"Applied {months} month(s) of market growth and fees")
@@ -745,7 +636,7 @@ elif page == "💰 Wallet & Investing":
     if w["history"]:
         st.write("#### Portfolio History")
         df = pd.DataFrame(w["history"])
-        st.line_chart(df.set_index("ts")["total"])
+        st.line_chart(df.set_index("ts")["total"]) 
         st.caption("Includes 10% profit share & ~1% AUM annualized fee; 0.2% transaction fees on buys.")
 
     st.write("---")
@@ -758,8 +649,8 @@ elif page == "💰 Wallet & Investing":
 elif page == "📊 Business Dashboard":
     st.subheader("Business Model & Projections")
 
-    users = st.number_input("Active paying users", min_value=0, value=st.session_state.business_metrics["users"], step=1000)
-    arpu = st.number_input("Monthly subscription ($)", min_value=1.0, value=float(st.session_state.business_metrics["arpu"]))
+    users = st.number_input("Active paying users", min_value=0, value=st.session_state.business_metrics["users"], step=1000, key="users")
+    arpu = st.number_input("Monthly subscription ($)", min_value=1.0, value=float(st.session_state.business_metrics["arpu"]), key="arpu")
 
     monthly_rev = users * arpu
     yearly_rev = monthly_rev * 12
@@ -780,15 +671,23 @@ elif page == "📊 Business Dashboard":
 
     st.write("#### Allocation per Month")
     alloc_df = pd.DataFrame({
-        "Bucket": ["Investment Pool (30%)", "Banking (10%)", "Marketing (10%)", "Net Remaining (60%)", "→ Equity from Net (5%)", "→ Investors from Net (10%)", "→ Retained from Net (45%)"],
+        "Bucket": [
+            "Investment Pool (30%)",
+            "Banking (10%)",
+            "Marketing (10%)",
+            "Net Remaining (60%)",
+            "→ Equity from Net (5%)",
+            "→ Investors from Net (10%)",
+            "→ Retained from Net (45%)"
+        ],
         "Amount": [alloc_invest, alloc_bank, alloc_marketing, net, net_equity, net_investors, net_retained]
     })
     st.dataframe(alloc_df, use_container_width=True)
 
     st.write("#### Finance-side Monetization (Illustrative)")
-    deposits = st.number_input("User deposits under custody ($)", min_value=0.0, value=5_000_000.0, step=100_000.0)
-    monthly_txn = st.number_input("Monthly transaction volume ($)", min_value=0.0, value=2_000_000.0, step=100_000.0)
-    invest_profit = st.number_input("Monthly profit generated on managed assets ($)", min_value=0.0, value=200_000.0, step=10_000.0)
+    deposits = st.number_input("User deposits under custody ($)", min_value=0.0, value=5_000_000.0, step=100_000.0, key="deposits")
+    monthly_txn = st.number_input("Monthly transaction volume ($)", min_value=0.0, value=2_000_000.0, step=100_000.0, key="monthly_txn")
+    invest_profit = st.number_input("Monthly profit generated on managed assets ($)", min_value=0.0, value=200_000.0, step=10_000.0, key="invest_profit")
 
     rev_profit_share = invest_profit * 0.10
     rev_aum_1pct_year = deposits * 0.01
@@ -813,9 +712,9 @@ elif page == "🧑‍⚕️ Human Therapist":
     st.subheader("Escalate to a Human Therapist")
     st.write("If risk is detected (persistent high stress, self-harm signals, or user request), HOME routes to a licensed professional.")
 
-    reason = st.selectbox("Reason", ["High stress readings", "Panic attack", "Depressed for 2+ weeks", "User request", "Other"])
-    notes = st.text_area("Notes for therapist (optional)")
-    if st.button("Request Callback"):
+    reason = st.selectbox("Reason", ["High stress readings", "Panic attack", "Depressed for 2+ weeks", "User request", "Other"], key="esc_reason")
+    notes = st.text_area("Notes for therapist (optional)", key="esc_notes")
+    if st.button("Request Callback", key="esc_request"):
         st.session_state.escalation_requests.append({
             "ts": datetime.now().isoformat(timespec="seconds"),
             "reason": reason,
@@ -848,4 +747,3 @@ else:
     )
 
     st.write("\n\nBuilt with ❤️ using Streamlit.")
-
