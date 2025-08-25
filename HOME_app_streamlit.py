@@ -6,6 +6,8 @@
 #   was not multiplied by 60 seconds (caused incorrect progress and possible divide issues).
 # - Made "Mark Done" task lookup robust so it only marks the intended task (avoids using a stale idx).
 # - Small defensive checks (explicit None checks for end_time).
+# - Safe wrapper around st.experimental_rerun to avoid AttributeError on Streamlit versions/environments
+#   where the function may be missing or behave unexpectedly.
 # ------------------------------------------------------------
 
 from datetime import datetime, timedelta, date
@@ -107,6 +109,23 @@ def init_state():
 
 def fmt_money(x: float) -> str:
     return f"${x:,.2f}"
+
+# Safe rerun wrapper to avoid AttributeError on some Streamlit versions/environments
+def safe_rerun():
+    try:
+        # Preferred API
+        if hasattr(st, "experimental_rerun"):
+            return st.experimental_rerun()
+        # older/newer fallback attempts (no-op if not available)
+        if hasattr(st, "rerun"):
+            return st.rerun()
+    except Exception:
+        # If rerun fails for any reason, set a flag so the app can respond next run if needed
+        try:
+            st.session_state._needs_rerun = True
+        except Exception:
+            pass
+    return None
 
 # -----------------------------
 # Voice Function (safe)
@@ -424,11 +443,11 @@ if page == "👤 Therapist Chat":
                     audio_file = speak_text(reply)
                     if audio_file:
                         st.audio(audio_file, format="audio/mp3")
-                st.experimental_rerun()
+                safe_rerun()
     with col2:
         if st.button("Quick Calm (4‑7‑8)", key="quick_calm"):
             st.session_state.chat_history.append(("assistant", CBT_SUGGESTIONS[0]))
-            st.experimental_rerun()
+            safe_rerun()
     with col3:
         if st.button("Add Next Task from Chat", key="add_task_from_chat"):
             st.session_state.tasks.append({
@@ -471,11 +490,11 @@ elif page == "📈 Mood Detection":
         with colx:
             if st.button("Open Chat", key="open_chat_from_mood"):
                 st.session_state.chat_history.append(("assistant", "I noticed your stress markers rising. I’m here with you. What’s happening?"))
-                st.experimental_rerun()
+                safe_rerun()
         with coly:
             if st.button("Start 4‑7‑8 Now", key="start_breath_now"):
                 st.session_state.chat_history.append(("assistant", CBT_SUGGESTIONS[0]))
-                st.experimental_rerun()
+                safe_rerun()
 
     if st.session_state.mood_log:
         st.write("### Recent Readings")
@@ -529,7 +548,7 @@ elif page == "✅ Tasks & Pomodoro":
             if st.button("Mark Done", key=f"done_{i}"):
                 if match_idx is not None:
                     st.session_state.tasks[match_idx]["done"] = True
-                    st.experimental_rerun()
+                    safe_rerun()
                 else:
                     st.warning("Could not find the task to mark done.")
 
@@ -549,15 +568,15 @@ elif page == "✅ Tasks & Pomodoro":
     with colpb1:
         if st.button("Start Focus", key="start_focus"):
             start_timer("focus")
-            st.experimental_rerun()
+            safe_rerun()
     with colpb2:
         if st.button("Start Break", key="start_break"):
             start_timer("break")
-            st.experimental_rerun()
+            safe_rerun()
     with colpb3:
         if st.button("Reset", key="pomodoro_reset"):
             st.session_state.pomodoro.update({"status":"idle", "end_time":None, "cycle":0})
-            st.experimental_rerun()
+            safe_rerun()
 
     rem = timer_remaining()
     if pcfg["status"] != "idle" and rem > 0:
@@ -574,7 +593,7 @@ elif page == "✅ Tasks & Pomodoro":
         st.progress(progress)
         st.caption("Keep this tab open; timer updates each run.")
         time.sleep(1)
-        st.experimental_rerun()
+        safe_rerun()
     elif pcfg["status"] != "idle" and rem == 0:
         if pcfg["status"] == "focus":
             pcfg["cycle"] += 1
@@ -584,7 +603,7 @@ elif page == "✅ Tasks & Pomodoro":
         else:
             start_timer("focus")
             st.info("Break complete. Back to focus.")
-        st.experimental_rerun()
+        safe_rerun()
 
 # -----------------------------
 # Page: Wallet & Investing
@@ -610,12 +629,12 @@ elif page == "💰 Wallet & Investing":
         if st.button("Deposit to Wallet", key="deposit_btn"):
             deposit_cash(dep)
             st.success(f"Deposited {fmt_money(dep)}")
-            st.experimental_rerun()
+            safe_rerun()
     with colw2:
         if st.button("Invest from Cash", key="invest_btn"):
             invest_from_cash(min(dep, st.session_state.wallet["cash"]))
             st.success("Invested from available cash (after 0.2% txn fee)")
-            st.experimental_rerun()
+            safe_rerun()
 
     st.write("#### Target Allocation (Rebalance)")
     new_w = {}
@@ -632,7 +651,7 @@ elif page == "💰 Wallet & Investing":
         if st.button("Rebalance", key="rebalance_btn"):
             rebalance(new_w)
             st.success("Rebalanced (fees applied)")
-            st.experimental_rerun()
+            safe_rerun()
 
     st.write("#### Simulate Monthly Growth")
     months = st.slider("Months to simulate", 1, 24, 1, key="months_sim")
@@ -640,7 +659,7 @@ elif page == "💰 Wallet & Investing":
         for _ in range(months):
             apply_monthly_growth()
         st.success(f"Applied {months} month(s) of market growth and fees")
-        st.experimental_rerun()
+        safe_rerun()
 
     if w["history"]:
         st.write("#### Portfolio History")
